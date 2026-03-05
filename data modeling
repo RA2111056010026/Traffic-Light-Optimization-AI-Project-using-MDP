@@ -1,0 +1,39 @@
+import xml.etree.ElementTree as ET
+import networkx as nx
+
+def build_mrf_graph(sumo_net_file):
+    # Initialize an undirected graph for the Markov Random Field
+    mrf_graph = nx.Graph()
+    
+    # Parse the SUMO network XML file
+    tree = ET.parse(sumo_net_file)
+    root = tree.getroot()
+    
+    # Step 1: Add Vertices (V) - Every road segment becomes a node in our MRF
+    for edge in root.findall('edge'):
+        edge_id = edge.get('id')
+        
+        # SUMO uses internal edges (starting with ':') for the space inside 
+        # an intersection. We skip these to focus only on actual roads.
+        if not edge_id.startswith(':'):
+            mrf_graph.add_node(edge_id)
+            
+    # Step 2: Add Edges (E) - Connect roads that physically touch
+    for connection in root.findall('connection'):
+        from_edge = connection.get('from')
+        to_edge = connection.get('to')
+        
+        # Ensure both roads exist in our graph and aren't internal intersections
+        if from_edge in mrf_graph and to_edge in mrf_graph:
+            # Because it is nx.Graph(), adding an edge automatically makes it 
+            # undirected, representing mutual spatial dependency (A affects B, B affects A)
+            mrf_graph.add_edge(from_edge, to_edge)
+            
+    return mrf_graph
+
+# --- Example Usage ---
+# lust_mrf = build_mrf_graph('LuSTScenario.net.xml')
+
+# Print basic graph statistics to verify the data structure
+# print(f"Total Roads (Vertices): {lust_mrf.number_of_nodes()}")
+# print(f"Total Connections (Edges): {lust_mrf.number_of_edges()}")
